@@ -3,6 +3,7 @@
 
 #include <ufomap/code.h>
 #include <ufomap/color.h>
+#include <ufomap/dynamic.h>
 
 #include <array>
 #include <iostream>
@@ -114,6 +115,47 @@ struct OccupancyNodeRGB : OccupancyNode
 		{
 			s.read((char*)&color, sizeof(color));
 		}
+		return s;
+	}
+};
+
+/**
+ * @brief An occupancy dynamic leaf node
+ *
+ */
+struct OccupancyNodeDynamic : OccupancyNode
+{
+	// The RGB color of the node
+	Dynamic dynamic;
+
+	/**
+	 * @brief Write the data from this node to stream s
+	 *
+	 * @param s The stream to write the data to
+	 * @param to_octomap Whether to write data in a UFOMap format or OctoMap format
+	 * @return std::ostream&
+	 */
+	std::ostream& writeData(std::ostream& s, float occupancy_thres_log,
+													float free_thres_log, bool to_octomap = false) const
+	{
+		OccupancyNode::writeData(s, occupancy_thres_log, free_thres_log, to_octomap);
+		s.write((const char*)&dynamic, sizeof(dynamic));
+		return s;
+	}
+
+	/**
+	 * @brief Read the data for this node from stream s
+	 *
+	 * @param s The stream to read the data from
+	 * @param from_octomap Whether the data in the stream is in UFOMap format or OctoMap
+	 * format
+	 * @return std::istream&
+	 */
+	std::istream& readData(std::istream& s, float occupancy_thres_log, float free_thres_log,
+												 bool from_octomap = false)
+	{
+		OccupancyNode::readData(s, occupancy_thres_log, free_thres_log, from_octomap);
+		s.read((char*)&dynamic, sizeof(dynamic));
 		return s;
 	}
 };

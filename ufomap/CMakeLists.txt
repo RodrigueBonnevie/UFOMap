@@ -82,6 +82,7 @@ add_library(${PROJECT_NAME}
   src/math/pose6.cpp
   src/math/quaternion.cpp
   src/octree_rgb.cpp
+  src/octree_dynamic.cpp
   src/octree.cpp
 )
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_FLAGS})
