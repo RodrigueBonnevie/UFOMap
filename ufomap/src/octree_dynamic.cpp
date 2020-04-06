@@ -39,25 +39,24 @@ OctreeDynamic::OctreeDynamic(const OctreeDynamic& other)
 
 //
 // Insertion
+//
 
-Node<OccupancyNodeDynamic> updateNodeValue(const Code& code, float logit_update)
+Node<OccupancyNodeDynamic> OctreeDynamic::updateNodeValue(const Code& code, float logit_update)
 {
     Node<OccupancyNodeDynamic> node = getNode(code);
-    session_node_state changed_node_struct;
-    bool previously_unknown = isUnknown(*node); // If the node is previously unknown nothing shuld happen to the dynamic estimation of the node
-    if (!changed_nodes_in_session_.count(node) && !previously_unknown)  // New observation  TODO: Double check that this key is unique
+    session_node_state changed_node_struct(&node);
+    bool previously_unknown = isUnknown(node); // If the node is previously unknown nothing shuld happen to the dynamic estimation of the node
+    if (!changed_nodes_in_session_.count(&node) && !previously_unknown)  // New observation  TODO: Double check that this key is unique
     {
-        if (isFree(*node))
+        if (isFree(node))
         {
             changed_node_struct.previous_state_free = true;
         }
-        if (isOccupied(*node))
+        if (isOccupied(node))
         {  // Will have to be changed if voxels fade to unkown in the future
             changed_node_struct.previous_state_occupied = true;
         }
-        changed_node_struct.node = *node.node;
-        changed_nodes_in_session_.insert(std::pair<const OccupancyNodeDynamic&, session_node_state>
-                                                            (*node.node, changed_node_struct));
+        changed_node_struct.node = &node;
     }
 
     // static update
@@ -72,26 +71,29 @@ Node<OccupancyNodeDynamic> updateNodeValue(const Code& code, float logit_update)
 
     // Dynamic continued
     if (!previously_unknown){
-        if (isFree(*node)){
-            changed_nodes_in_session_[node].current_state_free = true;
-            changed_nodes_in_session_[node].current_state_occupied = false;
+        if (isFree(node)){
+            changed_node_struct.current_state_free = true;
+            changed_node_struct.current_state_occupied = false;
         }
-        if (isOccupied(*node)){  // Will have to be changed if voxels fade to unkown in the future
-            changed_nodes_in_session_[node].current_state_occupied = true;
-            changed_nodes_in_session_[node].current_state_free = false;
+        if (isOccupied(node)){  // Will have to be changed if voxels fade to unkown in the future
+            changed_node_struct.current_state_occupied = true;
+			changed_node_struct.current_state_free = false;
         }
+        changed_nodes_in_session_.insert(std::pair<Node<OccupancyNodeDynamic>*, session_node_state>
+                                                            (&node, changed_node_struct));
     }   
     return retrun_node;
 
 }
 
-
+/// Will not be implemented here. Only present for comparison with update node value
 //void OctreeDynamic::insertNoCheck(const Code& code, bool hit, unsigned int depth)
 //{
-//	const OccupancyNode* node = search(code, depth, true); 
-//    OccupancyNode* node_unconst = const_cast<OccupancyNode*> (node);  // May be better to overload search function to return non const
+//    Node<OccupancyNodeDynamic> node = getNode(code);
+//    //Node<OccupancyNodeDynamic>* node_unconst = const_cast<Node<OccupancyNodeDynamic>*> (node);  // May be better to overload search function to return non const
+//	Node<OccupancyNodeDynamic> node_unconst = node;
 //    // Dynamic update
-//    node_unconst->session_last_seen = session_number_;
+//    //node_unconst.session_last_seen = session_number_;
 //    session_node changed_node_struct;
 //    bool previously_unknown; // this isn't right the first session, or you can say that is assumes another initial value to the dynamic parameters
 //    previously_unknown = isUnknown(*node); // If the node is previously unknown nothing shuld happen to the dynamic estimation of the node
@@ -127,33 +129,34 @@ Node<OccupancyNodeDynamic> updateNodeValue(const Code& code, float logit_update)
 //
 //}
 //
-//void OctreeDynamic::update_dynamic_parameters(int session_number){
-//    // Should be run at end of session.
-//    // Updating alpha and beta variables
-//    // state_prev shoud be the state from the previous session
-//    // state_now could be the latest measured state in the session
-//    fprintf(stderr, "starting update_dynamic_parameters \n");
-//    session_number_ = session_number;
-//    int padda = 0;
-//    for (auto it = changed_nodes_session_.begin(); it !=changed_nodes_session_.end(); ++it){
-//        OccupancyNode* node = it->second.node;
-//
-//        if (it->second.previous_state_free){
-//            ++ node->beta_entry; 
-//            if (it->second.current_state_occupied){
-//                ++ node->alpha_entry;
-//            }
-//        }
-//        if (it->second.previous_state_occupied){
-//            ++ node->beta_exit;
-//            if (it->second.current_state_free){
-//                ++ node->alpha_exit;
-//            }
-//        }
-//        // Updating markov parameters
-//        node->p_exit = float(node->alpha_exit)/node->beta_exit;
-//        node->p_entry = float(node->alpha_entry)/node->beta_entry;
-//
+void OctreeDynamic::update_dynamic_parameters(int session_number){
+    // Should be run at end of session.
+    // Updating alpha and beta variables
+    // state_prev shoud be the state from the previous session
+    // state_now could be the latest measured state in the session
+    fprintf(stderr, "starting update_dynamic_parameters \n");
+    //session_number_ = session_number;
+    int padda = 0;
+    for (auto it = changed_nodes_in_session_.begin(); it !=changed_nodes_in_session_.end(); ++it){
+        const Node<OccupancyNodeDynamic>* node_const = it->second.node;
+        OccupancyNodeDynamic* node= const_cast<OccupancyNodeDynamic*> (node_const->node);  // May be better to overload search function to return non const
+
+        if (it->second.previous_state_free){
+            ++ node->dynamic.beta_entry; 
+            if (it->second.current_state_occupied){
+                ++ node->dynamic.alpha_entry;
+            }
+        }
+        if (it->second.previous_state_occupied){
+            ++ node->dynamic.beta_exit;
+            if (it->second.current_state_free){
+                ++ node->dynamic.alpha_exit;
+            }
+        }
+        // Updating markov parameters
+        //node->p_exit = float(node->alpha_exit)/node->beta_exit;
+        //node->p_entry = float(node->alpha_entry)/node->beta_entry;
+
 //        if ( node->p_exit > 1.0 || node->p_exit < 0.0){
 //            fprintf(stderr,"Illegal value of p_exit : %f \n ", node->p_exit);
 //            fprintf(stderr, "alpha = %d, beta = %d \n",node->alpha_exit, node->beta_exit);
@@ -172,9 +175,10 @@ Node<OccupancyNodeDynamic> updateNodeValue(const Code& code, float logit_update)
 //                    it->second.current_state_free);
 //            fprintf(stderr,"\n");
 //        }
-//        ++padda;
-//    }
-//    changed_nodes_session_.clear();
-//    fprintf(stderr,"Number of updated dynamic parameters: %d \n", padda);
-//}
+        ++padda;
+    }
+    changed_nodes_in_session_.clear();
+    fprintf(stderr,"Number of updated dynamic parameters: %d \n", padda);
+}
+
 }  // namespace ufomap

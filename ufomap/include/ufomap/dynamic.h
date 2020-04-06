@@ -2,23 +2,12 @@
 #ifndef UFOMAP_DYNAMIC_H
 #define UFOMAP_DYNAMIC_H
 
-#include <ufomap/octree_dynamic.h>
+//#include <ufomap/octree_dynamic.h>
 
 #include <cstdint>
 
 namespace ufomap
 {
-/**
- * @brief states of observed nodes in session
- *
- */
-struct session_node_state {
-    bool previous_state_free = false;
-    bool previous_state_occupied = false;
-    bool current_state_free = false;
-    bool current_state_occupied = false;
-    OccupancyNodeDynamic& node; 
-};
 
 /**
  * @brief dynamic parameter bundle in node

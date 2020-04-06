@@ -125,7 +125,7 @@ struct OccupancyNodeRGB : OccupancyNode
  */
 struct OccupancyNodeDynamic : OccupancyNode
 {
-	// The RGB color of the node
+	// The dynamic parameters of the node
 	Dynamic dynamic;
 
 	/**
